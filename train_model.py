@@ -1,0 +1,342 @@
+import pandas as pd
+import numpy as np
+import joblib
+
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.ensemble import GradientBoostingClassifier
+
+
+
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    classification_report,
+    confusion_matrix
+)
+
+
+# ==========================================
+# 1. LOAD DATASET
+# ==========================================
+
+data = pd.read_csv("data/diabetes.csv")
+
+print("Dataset loaded successfully!")
+print("Dataset shape:", data.shape)
+
+print("\nFirst 5 rows:")
+print(data.head())
+
+
+# ==========================================
+# 2. CHECK DATA
+# ==========================================
+
+print("\nColumn names:")
+print(data.columns.tolist())
+
+print("\nMissing values:")
+print(data.isnull().sum())
+
+print("\nOutcome distribution:")
+print(data["Outcome"].value_counts())
+
+
+# ==========================================
+# 3. HANDLE INVALID ZERO VALUES
+# ==========================================
+
+columns_to_clean = [
+    "Glucose",
+    "BloodPressure",
+    "SkinThickness",
+    "Insulin",
+    "BMI"
+]
+
+data[columns_to_clean] = data[columns_to_clean].replace(
+    0,
+    np.nan
+)
+
+data[columns_to_clean] = data[columns_to_clean].fillna(
+    data[columns_to_clean].median()
+)
+
+
+# ==========================================
+# 4. SEPARATE FEATURES AND TARGET
+# ==========================================
+
+X = data.drop("Outcome", axis=1)
+
+y = data["Outcome"]
+
+
+print("\nFeatures:")
+print(X.columns.tolist())
+
+print("\nTarget:")
+print("Outcome")
+
+
+# ==========================================
+# 5. TRAIN / TEST SPLIT
+# ==========================================
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.20,
+    random_state=42,
+    stratify=y
+)
+
+print("\nTraining samples:", len(X_train))
+print("Testing samples:", len(X_test))
+
+
+# ==========================================
+# 6. CREATE MULTIPLE ML MODELS
+# ==========================================
+
+models = {
+
+    "Logistic Regression": Pipeline([
+        ("scaler", StandardScaler()),
+        ("classifier", LogisticRegression(
+            max_iter=1000
+        ))
+    ]),
+
+    "Random Forest": RandomForestClassifier(
+        n_estimators=200,
+        random_state=42
+    ),
+
+    "SVM": Pipeline([
+        ("scaler", StandardScaler()),
+        ("classifier", SVC(
+            probability=True,
+            random_state=42
+        ))
+    ]),
+
+    "Gradient Boosting": Pipeline([
+    ("imputer", SimpleImputer(strategy="median")),
+    ("classifier", GradientBoostingClassifier(
+        random_state=42
+    ))
+])
+}
+
+
+# ==========================================
+# 7. TRAIN AND EVALUATE MODELS
+# ==========================================
+
+results = []
+
+trained_models = {}
+
+for name, model in models.items():
+
+    print("\nTraining:", name)
+
+    # Train the model
+    model.fit(X_train, y_train)
+
+    # Make predictions
+    predictions = model.predict(X_test)
+
+    # Get probability for positive class
+    probabilities = model.predict_proba(
+        X_test
+    )[:, 1]
+
+    # Calculate performance metrics
+    accuracy = accuracy_score(
+        y_test,
+        predictions
+    )
+
+    precision = precision_score(
+        y_test,
+        predictions
+    )
+
+    recall = recall_score(
+        y_test,
+        predictions
+    )
+
+    f1 = f1_score(
+        y_test,
+        predictions
+    )
+
+    roc_auc = roc_auc_score(
+        y_test,
+        probabilities
+    )
+
+    # Store results
+    results.append({
+        "Model": name,
+        "Accuracy": accuracy,
+        "Precision": precision,
+        "Recall": recall,
+        "F1 Score": f1,
+        "ROC-AUC": roc_auc
+    })
+
+    # Store trained model
+    trained_models[name] = model
+# ==========================================
+# 8. MODEL COMPARISON
+# ==========================================
+
+results_df = pd.DataFrame(results)
+
+print("\n================================")
+print("MODEL COMPARISON")
+print("================================")
+
+print(
+    results_df.round(3).to_string(
+        index=False
+    )
+)
+# ==========================================
+# 9. SELECT BEST MODEL
+# ==========================================
+
+best_model_name = results_df.loc[
+    results_df["ROC-AUC"].idxmax(),
+    "Model"
+]
+
+best_model = trained_models[
+    best_model_name
+]
+
+print("\n================================")
+print("BEST MODEL")
+print("================================")
+
+print(
+    "Selected model:",
+    best_model_name
+)
+# ==========================================
+# 10. SAVE BEST MODEL
+# ==========================================
+
+joblib.dump(
+    best_model,
+    "model/diabetes_model.pkl"
+)
+
+print("\nModel saved successfully!")
+
+# ============================================
+# FINAL MODEL PERFORMANCE
+# ============================================
+
+final_predictions = best_model.predict(X_test)
+
+final_probabilities = best_model.predict_proba(X_test)[:, 1]
+
+print("\n================================")
+print("MODEL PERFORMANCE")
+print("================================")
+
+print(
+    "Accuracy :",
+    round(accuracy_score(y_test, final_predictions), 3)
+)
+
+print(
+    "Precision:",
+    round(precision_score(y_test, final_predictions), 3)
+)
+
+print(
+    "Recall   :",
+    round(recall_score(y_test, final_predictions), 3)
+)
+
+print(
+    "F1 Score :",
+    round(f1_score(y_test, final_predictions), 3)
+)
+
+print(
+    "ROC-AUC  :",
+    round(roc_auc_score(y_test, final_probabilities), 3)
+)
+
+print("\n================================")
+print("CLASSIFICATION REPORT")
+print("================================")
+
+print(
+    classification_report(
+        y_test,
+        final_predictions
+    )
+)
+
+print("\n================================")
+print("CONFUSION MATRIX")
+print("================================")
+
+print(
+    confusion_matrix(
+        y_test,
+        final_predictions
+    )
+)
+
+# ==========================================
+# 11. CONFUSION MATRIX
+# ==========================================
+print("\n================================")
+print("CONFUSION MATRIX")
+print("================================")
+
+print(
+    confusion_matrix(
+        y_test,
+        final_predictions
+    )
+)
+
+
+
+
+# ==========================================
+# 12. SAVE MODEL
+# ==========================================
+
+joblib.dump(
+    model,
+    "model/diabetes_model.pkl"
+)
+
+print("\n================================")
+print("MODEL SAVED")
+print("================================")
+
+print(
+    "Saved as: model/diabetes_model.pkl"
+)

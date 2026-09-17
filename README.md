@@ -140,7 +140,7 @@ The selected Gradient Boosting model achieved approximately:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/AI-PredictCare.git
+git clone https://github.com/abhijith070/AI-PredictCare.git
 ```
 
 ### 2. Open the project

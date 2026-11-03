@@ -1,4 +1,4 @@
-# 🩺 AI PredictCare – Health Risk Prediction System
+#  AI PredictCare – Health Risk Prediction System
 
 AI PredictCare is a machine learning-based health risk prediction system designed to predict potential health risks using patient health parameters. The project uses machine learning models and provides an interactive interface for making predictions.
 
